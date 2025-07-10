@@ -1,0 +1,4 @@
+DRIVE_LABEL=WD_BLACK
+C:\Users\thundaklap\Downloads\_музыка\_в схрон->E:\VITALIY\_MUSIC
+D:\_projects->E:\VITALIY\_PRODUCTION\_projects
+D:\samples->E:\VITALIY\_PRODUCTION\samples
