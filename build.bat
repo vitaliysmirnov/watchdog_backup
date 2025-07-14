@@ -21,7 +21,7 @@ if not exist "%VENV_DIR%" (
 )
 
 echo Activating virtual environment...
-call "%PROJECT_DIR%\%VENV_DIR%\Scripts\activate.bat"
+call .\%VENV_DIR%\Scripts\activate.bat"
 
 if %ERRORLEVEL% NEQ 0 (
     echo Error: Failed to activate virtual environment.
@@ -33,9 +33,8 @@ echo Install packages.
 pip install -r requirements.txt
 
 pyinstaller --clean --onefile --icon=app.ico --noconfirm %SCRIPT_NAME%
-deactivate
 copy /y dist\watchdog_backup.exe .
 
 endlocal
 echo Build finished.
-pause
+deactivate
