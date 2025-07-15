@@ -1,5 +1,6 @@
 import os
 import time
+import ctypes
 import logging
 import logging.handlers
 import subprocess
@@ -226,6 +227,9 @@ def copy_files(src, dst, logger):
         # Get current source modification time
         current_mtime = get_dir_mtime(src)
         last_copy_path = os.path.join(dst, LAST_COPY_FILE)
+
+        if platform.system() == "Windows":
+            ctypes.windll.kernel32.SetFileAttributesW(last_copy_path, 2)
 
         # Check if copying is needed
         need_copy = True
