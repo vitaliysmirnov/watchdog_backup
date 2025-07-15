@@ -124,8 +124,8 @@ def copy_with_robocopy(src, dst, logger):
                 "/R:1",  # 1 retry attempt
                 "/W:1",  # Wait 1 sec between retries
                 "/NP",  # Don't show progress percentage
-                "/NFL",  # Don't log file names
-                "/NDL",  # Don't log directory names
+                # "/NFL",  # Don't log file names
+                # "/NDL",  # Don't log directory names
                 f"/LOG:{ROBOCOPY_LOG}",  # Log to separate file
                 "/TEE",  # Output to console
                 "/XF", "Thumbs.db", "*.tmp",
