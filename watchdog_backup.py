@@ -349,7 +349,7 @@ def main():
             try:
                 disk_path = is_disk_connected(config['disk_name'])
                 if disk_path:
-                    logger.info(f"\nDisk connected: {disk_path}")
+                    logger.info(f"Disk connected: {disk_path}")
                     for pair in config['copy_pairs']:
                         copy_files(pair['source'], os.path.join(disk_path, pair['destination']), logger)
                 else:
