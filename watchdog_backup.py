@@ -263,8 +263,12 @@ def copy_files(src, dst, logger):
             # Save last copy time only on success
             if success:
                 try:
+                    if platform.system() == "Windows":
+                        ctypes.windll.kernel32.SetFileAttributesW(last_copy_path, 0x80)
                     with open(last_copy_path, 'w') as f:
                         f.write(str(current_mtime))
+                    if platform.system() == "Windows":
+                        ctypes.windll.kernel32.SetFileAttributesW(last_copy_path, 2)
                 except:
                     logger.warning("Failed to save last copy time")
 
