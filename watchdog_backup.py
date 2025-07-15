@@ -7,11 +7,14 @@ import subprocess
 import platform
 import shutil
 import schedule
+from datetime import datetime
 
 # Constants
 CONFIG_FILE = "config.txt"
 LOG_FILE = "watchdog_backup.log"
 ROBOCOPY_LOG = "robocopy.log"
+MAX_ROBOCOPY_LOG_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_LOG_FILES = 10
 LAST_COPY_FILE = ".last_copy_time"
 
 
@@ -22,7 +25,7 @@ def setup_logging():
 
     # Main log file with rotation
     handler = logging.handlers.TimedRotatingFileHandler(
-        LOG_FILE, when='midnight', backupCount=7
+        LOG_FILE, when='midnight', backupCount=MAX_LOG_FILES
     )
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(handler)
@@ -107,12 +110,41 @@ def get_dir_mtime(path):
     return max_mtime
 
 
+def rotate_robocopy_log():
+    """Check and rotate log file in necessary"""
+    if not os.path.exists(ROBOCOPY_LOG):
+        return
+
+    # Check log file size
+    if os.path.getsize(ROBOCOPY_LOG) < MAX_ROBOCOPY_LOG_SIZE:
+        return
+
+    # Generate new file name for old log file
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    rotated_log = f"robocopy_{timestamp}.log"
+
+    try:
+        # Rename current log file
+        os.rename(ROBOCOPY_LOG, rotated_log)
+
+        # Delete old log files
+        log_files = sorted(
+            [f for f in os.listdir() if f.startswith("robocopy_") and f.endswith(".log")],
+            key=os.path.getctime
+        )
+
+        while len(log_files) >= MAX_LOG_FILES:
+            os.remove(log_files.pop(0))
+
+    except Exception as e:
+        print(f"Log rotation error: {e}")
+
+
 def copy_with_robocopy(src, dst, logger):
     """Copy using Robocopy (without file deletion)"""
     try:
-        # Clear previous Robocopy log
-        if os.path.exists(ROBOCOPY_LOG):
-            os.remove(ROBOCOPY_LOG)
+        # Check logs
+        rotate_robocopy_log()
 
         result = subprocess.run(
             [
@@ -127,7 +159,7 @@ def copy_with_robocopy(src, dst, logger):
                 "/NP",  # Don't show progress percentage
                 # "/NFL",  # Don't log file names
                 # "/NDL",  # Don't log directory names
-                f"/LOG:{ROBOCOPY_LOG}",  # Log to separate file
+                f"/LOG+:{ROBOCOPY_LOG}",  # Log to separate file
                 "/TEE",  # Output to console
                 "/XF", "Thumbs.db", "*.tmp",
                 "/XD", "$RECYCLE.BIN", "System Volume Information"
@@ -138,17 +170,23 @@ def copy_with_robocopy(src, dst, logger):
             timeout=3600
         )
 
-        # Robocopy return codes:
-        # 0 = files copied
-        # 1 = new files added
-        # 2-7 = partial copy (normal situation)
-        # 8+ = real errors
         if result.returncode <= 7:
-            logger.info(f"Robocopy completed (code {result.returncode})")
-        else:
-            logger.error(f"Robocopy error (code {result.returncode}): {result.stderr}")
+            status_msg = {
+                0: "No files copied (source and destination synchronized)",
+                1: "Files copied successfully",
+                2: "Extra files detected in destination",
+                3: "Copy incomplete (mismatched files)",
+                4: "Some files could not be copied",
+                5: "Copy incomplete (retry limit exceeded)",
+                6: "Some files could not be copied (retry limit exceeded)",
+                7: "Files copied, some mismatched files or retries"
+            }.get(result.returncode, "Copy completed with warnings")
 
-        return True if result.returncode <= 7 else False
+            logger.info(f"Robocopy status: {status_msg} (return code {result.returncode})")
+            return True
+        else:
+            logger.error(f"Robocopy failed with error (return code {result.returncode}): {result.stderr}")
+            return False
 
     except subprocess.TimeoutExpired:
         logger.error(f"Copy timeout exceeded: {src}")
